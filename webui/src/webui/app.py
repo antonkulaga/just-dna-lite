@@ -7,7 +7,8 @@ import zipfile
 
 import reflex as rx
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from just_dna_pipelines.annotation.analytics import inject_umami_tracker
 from just_dna_pipelines.runtime import load_env
 from just_dna_pipelines.annotation.resources import get_user_output_dir
 from reflex import constants
@@ -243,7 +244,7 @@ async def download_agent_run_log(spec_name: str, version_dir: str, log_name: str
 
 
 @api.get("/api/report/{user_id}/{sample_name}/{filename}")
-async def view_report_file(user_id: str, sample_name: str, filename: str) -> FileResponse:
+async def view_report_file(user_id: str, sample_name: str, filename: str) -> FileResponse | HTMLResponse:
     """
     Serve an HTML report file for viewing in the browser.
     
@@ -266,10 +267,14 @@ async def view_report_file(user_id: str, sample_name: str, filename: str) -> Fil
     if not file_path.is_file():
         raise HTTPException(status_code=400, detail=f"Path is not a file: {file_path}")
     
-    return FileResponse(
-        path=str(file_path),
-        media_type="text/html",
-    )
+    html = file_path.read_text(encoding="utf-8")
+    tracked_html = inject_umami_tracker(html)
+    if tracked_html == html:
+        return FileResponse(
+            path=str(file_path),
+            media_type="text/html",
+        )
+    return HTMLResponse(content=tracked_html)
 
 
 @api.get("/api/module-logo/{module_name}")

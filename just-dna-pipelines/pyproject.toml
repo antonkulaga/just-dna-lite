@@ -1,6 +1,6 @@
 [project]
 name = "just-dna-pipelines"
-version = "0.1.4"
+version = "0.1.5"
 description = "Genomic Database Management and Annotation Tool"
 readme = "README.md"
 authors = [

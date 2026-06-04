@@ -312,6 +312,9 @@ window.onscroll = function() {
     }
 };
 </script>
+{% if umami_script_tag %}
+    {{ umami_script_tag | safe }}
+{% endif %}
 </head>
 
 <body>

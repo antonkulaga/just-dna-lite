@@ -12,6 +12,7 @@ from typing import Optional
 import polars as pl
 from eliot import log_message, start_action
 
+from just_dna_pipelines.annotation.analytics import umami_script_tag
 from just_dna_pipelines.annotation.hf_modules import (
     ModuleInfo,
     ModuleTable,
@@ -576,6 +577,7 @@ def generate_longevity_report(
             longevity=longevity_data,
             other_modules=other_modules_data,
             module_display_names=MODULE_DISPLAY_NAMES,
+            umami_script_tag=umami_script_tag(),
         )
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
