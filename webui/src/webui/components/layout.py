@@ -348,11 +348,28 @@ def ws_watchdog() -> rx.Component:
     return rx.script(_WS_WATCHDOG_JS)
 
 
+_LIGHT_MODE_CSS = """
+html,
+body,
+[data-is-root-theme="true"] {
+    color-scheme: light !important;
+}
+
+#just-dna-app-shell,
+#just-dna-app-shell .ui.container,
+#layout-left-column,
+#layout-right-column {
+    color: #222;
+}
+"""
+
+
 def template(*children: rx.Component) -> rx.Component:
     """Main page template with Fomantic UI styling."""
     return rx.el.div(
         # Load Fomantic UI directly
         fomantic_stylesheets(),
+        rx.el.style(_LIGHT_MODE_CSS),
         # Auto-reload on WebSocket disconnect
         ws_watchdog(),
         # GitHub corner ribbon (top-right)
@@ -370,7 +387,12 @@ def template(*children: rx.Component) -> rx.Component:
                 "backgroundColor": "#f5f7fa",
             },
         ),
-        style={"fontFamily": "'Lato', 'Helvetica Neue', Arial, Helvetica, sans-serif"},
+        style={
+            "fontFamily": "'Lato', 'Helvetica Neue', Arial, Helvetica, sans-serif",
+            "color": "#222",
+            "colorScheme": "light",
+        },
+        id="just-dna-app-shell",
     )
 
 

@@ -12,6 +12,7 @@ from just_dna_pipelines.runtime import load_env
 from just_dna_pipelines.annotation.resources import get_user_output_dir
 from reflex import constants
 from reflex_base.config import get_config
+from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 # Load environment variables before importing pages/state modules that resolve
@@ -335,12 +336,57 @@ def _close_unmatched_websockets(asgi_app: ASGIApp) -> ASGIApp:
     return guarded_app
 
 
+_NO_STORE_FRONTEND_PATHS = {
+    "/",
+    "/index.html",
+    "/manifest.json",
+}
+_NO_STORE_FRONTEND_PREFIXES = (
+    "/utils/",
+)
+
+
+def _should_disable_frontend_cache(path: str) -> bool:
+    """Return whether a frontend response should be revalidated on every load."""
+    return (
+        path in _NO_STORE_FRONTEND_PATHS
+        or path.endswith(".html")
+        or any(path.startswith(prefix) for prefix in _NO_STORE_FRONTEND_PREFIXES)
+    )
+
+
+def _disable_stale_frontend_cache(asgi_app: ASGIApp) -> ASGIApp:
+    """Avoid serving a Reflex frontend built for an older backend version.
+
+    Reflex embeds its package version in the generated client runtime. If the
+    browser keeps an old HTML shell or `/utils/state.js`, it reconnects with the
+    previous client version and can spam version-mismatch warnings until the tab
+    is refreshed.
+    """
+
+    async def guarded_app(scope: Scope, receive: Receive, send: Send) -> None:
+        path = str(scope.get("path", ""))
+        disable_cache = scope["type"] == "http" and _should_disable_frontend_cache(path)
+
+        async def send_with_cache_headers(message: dict[str, object]) -> None:
+            if disable_cache and message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+                headers["Pragma"] = "no-cache"
+                headers["Expires"] = "0"
+            await send(message)
+
+        await asgi_app(scope, receive, send_with_cache_headers)
+
+    return guarded_app
+
+
 app = rx.App(
     # Disable Radix theme to let Fomantic UI styles work properly
     theme=None,
     # Guard the Reflex backend before mounting it under custom FastAPI routes,
     # so future FastAPI websocket routes can still be handled explicitly.
-    api_transformer=[_close_unmatched_websockets, api],
+    api_transformer=[_close_unmatched_websockets, _disable_stale_frontend_cache, api],
 )
 
 # Ensure pages are registered.

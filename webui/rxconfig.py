@@ -34,6 +34,34 @@ def _configured_hosts() -> list[str] | bool:
 
 _vite_hosts = _configured_hosts()
 
+_UMAMI_SCRIPT_URL = os.environ.get(
+    "UMAMI_SCRIPT_URL",
+    "https://umami.just-dna.life/script.js",
+).strip()
+_UMAMI_WEBSITE_ID = os.environ.get(
+    "UMAMI_WEBSITE_ID",
+    "7f9afbbf-3ab8-4570-87c4-4bdf78a2ea31",
+).strip()
+_UMAMI_DOMAINS = os.environ.get("UMAMI_DOMAINS", "").strip()
+_UMAMI_HOST_URL = os.environ.get("UMAMI_HOST_URL", "").strip()
+
+
+def _head_components() -> list[rx.Component]:
+    """Build static head scripts compiled into the Reflex frontend."""
+
+    components: list[rx.Component] = [
+        rx.script(src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"),
+        rx.script(src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.4/dist/semantic.min.js"),
+    ]
+    if _UMAMI_SCRIPT_URL and _UMAMI_WEBSITE_ID:
+        umami_attrs: dict[str, str] = {"data-website-id": _UMAMI_WEBSITE_ID}
+        if _UMAMI_DOMAINS:
+            umami_attrs["data-domains"] = _UMAMI_DOMAINS
+        if _UMAMI_HOST_URL:
+            umami_attrs["data-host-url"] = _UMAMI_HOST_URL
+        components.append(rx.script(src=_UMAMI_SCRIPT_URL, custom_attrs=umami_attrs))
+    return components
+
 config = rx.Config(
     app_name="webui",
     plugins=[rx.plugins.RadixThemesPlugin()],
@@ -42,10 +70,7 @@ config = rx.Config(
     stylesheets=[
         "https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.4/dist/semantic.min.css",
     ],
-    head_components=[
-        rx.script(src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"),
-        rx.script(src="https://cdn.jsdelivr.net/npm/fomantic-ui@2.9.4/dist/semantic.min.js"),
-    ],
+    head_components=_head_components(),
     tailwind=None,
     show_built_with_reflex=False,
 )
