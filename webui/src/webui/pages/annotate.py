@@ -22,9 +22,9 @@ from prs_ui import (
     prs_compute_button,
     prs_engine_selector,
     prs_progress_section,
-    prs_results_table,
+    prs_results_with_chart,
     prs_scores_selector,
-    trait_summary_table,
+    trait_results_with_chart,
 )
 from prs_ui.grid_style import data_grid_scroll_container
 from prs_ui.pages.traits import trait_selector
@@ -1595,8 +1595,12 @@ def _prs_results_panel() -> rx.Component:
     return rx.el.div(
         _prs_results_tab_menu(),
         rx.el.div(
-            trait_summary_table(PRSState, detail_height="auto"),
-            prs_results_table(PRSState, detail_height="auto"),
+            # Altair-based redesign (prs-ui 0.3.8): a compact clickable table
+            # with an always-visible bell-curve distribution chart below it.
+            # Each variant self-gates on prs_view_mode, matching the tab menu
+            # above; show_header=False because the webui renders its own header.
+            trait_results_with_chart(PRSState),
+            prs_results_with_chart(PRSState, show_header=False),
             class_name="ui bottom attached segment",
             style={
                 "padding": "18px",
