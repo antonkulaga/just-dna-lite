@@ -3394,6 +3394,7 @@ def _compute_single_prs(
     reference_restoration: bool = False,
     reference_universe_path: Optional[str] = None,
     sample_build: Optional[str] = None,
+    genotype_input_mode: str = "auto",
 ) -> Dict[str, Any]:
     """Compute and enrich a single PRS — pure function, no Reflex state access.
 
@@ -3402,7 +3403,10 @@ def _compute_single_prs(
 
     For WGS samples ``reference_restoration=True`` (with a resolved universe
     parquet) fills absent variants as hom-ref, lifting genome-wide coverage
-    from ~27% to ~99.9%.  ``sample_build`` arms just-prs' build-mismatch guard.
+    from ~27% to ~99.9%.  Restoration only engages in just-prs' ``variant_only``
+    genotype mode, so WGS callers must pass ``genotype_input_mode="variant_only"``
+    — under ``auto`` a DeepVariant VCF's RefCall records resolve to ``all_sites``
+    and restoration silently no-ops.  ``sample_build`` arms the build guard.
     """
     info = catalog.score_info_row(pgs_id)
     trait = info["trait_reported"] if info else None
@@ -3415,6 +3419,7 @@ def _compute_single_prs(
         pgs_id=pgs_id,
         trait_reported=trait,
         genotypes_lf=genotypes_lf,
+        genotype_input_mode=genotype_input_mode,
         reference_restoration=reference_restoration,
         reference_universe_path=reference_universe_path,
         sample_build=sample_build,
@@ -3447,6 +3452,7 @@ def _compute_single_prs_with_cache_repair(
     reference_restoration: bool = False,
     reference_universe_path: Optional[str] = None,
     sample_build: Optional[str] = None,
+    genotype_input_mode: str = "auto",
 ) -> Dict[str, Any]:
     """Compute one PRS, repairing a corrupt local scoring parquet and retrying once."""
     kwargs = dict(
@@ -3462,6 +3468,7 @@ def _compute_single_prs_with_cache_repair(
         reference_restoration=reference_restoration,
         reference_universe_path=reference_universe_path,
         sample_build=sample_build,
+        genotype_input_mode=genotype_input_mode,
     )
     try:
         return _compute_single_prs(**kwargs)
@@ -3803,9 +3810,12 @@ class PRSState(PRSComputeStateMixin, LazyFrameGridMixin, rx.State):
 
             # WGS samples: restore reference alleles for absent variants (assumed
             # hom-ref) so genome-wide coverage isn't capped at the recorded set.
-            # The universe parquet is pulled from HF on first use; if unavailable
-            # we degrade to no restoration rather than mis-fill.
+            # Restoration only engages in just-prs' variant_only mode, so WGS must
+            # force it (auto would mis-detect DeepVariant RefCall VCFs as all_sites
+            # and silently skip restoration).  Arrays keep auto: absent means
+            # untyped, never hom-ref, so they must not impute.
             restoration = sample_type == "wgs"
+            genotype_mode = "variant_only" if sample_type == "wgs" else "auto"
             universe_path: Optional[str] = None
             if restoration:
                 try:
@@ -3846,6 +3856,7 @@ class PRSState(PRSComputeStateMixin, LazyFrameGridMixin, rx.State):
                             reference_restoration=restoration,
                             reference_universe_path=universe_path,
                             sample_build=genome_build,
+                            genotype_input_mode=genotype_mode,
                         ),
                     )
                 except Exception as score_exc:
