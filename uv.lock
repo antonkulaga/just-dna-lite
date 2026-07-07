@@ -1855,7 +1855,7 @@ wheels = [
 
 [[package]]
 name = "just-dna-lite"
-version = "0.3.11"
+version = "0.3.12"
 source = { editable = "." }
 dependencies = [
     { name = "dagster-dg-cli" },
@@ -1911,7 +1911,7 @@ wheels = [
 
 [[package]]
 name = "just-dna-pipelines"
-version = "0.1.6"
+version = "0.2.0"
 source = { editable = "just-dna-pipelines" }
 dependencies = [
     { name = "agno" },

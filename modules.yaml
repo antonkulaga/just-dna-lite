@@ -72,6 +72,24 @@ module_metadata:
     report_title: Thrombophilia Risk
     icon: droplets
     color: '#9f3a38'
+  cardio:
+    title: Cardio
+    description: Pathogenic variants in cardiac-disease genes (ClinVar gene panel)
+    report_title: Cardiac Pathogenic Variants
+    icon: heart-pulse
+    color: '#db2828'
+  cancer:
+    title: Cancer
+    description: Pathogenic variants in cancer-predisposition genes (ClinVar gene panel)
+    report_title: Cancer Predisposition
+    icon: circle-alert
+    color: '#e03997'
+  pathogenic:
+    title: Pathogenic
+    description: Genome-wide ClinVar pathogenic / likely-pathogenic variant flag
+    report_title: ClinVar Pathogenic Variants
+    icon: database
+    color: '#b21e1e'
   drugs:
     title: Pharmacogenomics
     description: Drug response and metabolism (PharmGKB)
