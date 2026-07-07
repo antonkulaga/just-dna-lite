@@ -540,7 +540,11 @@ def adapt_superhuman(
     for row in _rows(db, "superhuman"):
         rsid = _valid_rsid(row.get("rsid"))
         if rsid is None:
-            skipped += 1
+            # A blank rsid is a citation-only / non-variant source row (e.g. the PCSK9 row that only
+            # carries the Cohen-2006 URL — its variant is R46L, curated as rs11591147), not malformed
+            # data: skip it silently. Only a present-but-unparseable rsid is a real skip worth warning.
+            if str(row.get("rsid") or "").strip():
+                skipped += 1
             continue
         gene = _clean_str(row.get("gene"))
         gene_norm = (gene.strip() if gene else gene) or ""
