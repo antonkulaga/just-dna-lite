@@ -1,6 +1,6 @@
 [project]
 name = "just-dna-lite"
-version = "0.3.14"
+version = "0.3.15"
 description = "Just DNA Lite version to analyze your omics faster"
 readme = "README.md"
 requires-python = ">=3.13, <3.14"
@@ -11,7 +11,7 @@ dependencies = [
   "pyyaml>=6.0.3",
   "dagster-dg-cli>=1.12.22",
   "google-genai>=1.71.0,<2.0",
-  "just-prs>=0.7.4",
+  "just-prs>=0.7.5",
   "just-dna-marketplace>=0.5.0",
   # grpcio-health-checking 1.82.0 ships _pb2 gencode built against protobuf 7.35.0,
   # but dagster caps protobuf<7 — the resolved protobuf 6.x runtime is then older than
