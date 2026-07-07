@@ -68,6 +68,23 @@ def _ensure_annotation_report_columns(df: pl.DataFrame) -> pl.DataFrame:
     return df.with_columns(missing_columns)
 
 
+def _annotated_rows(df: pl.DataFrame) -> pl.DataFrame:
+    """Keep only rows that actually matched a module entry (were annotated).
+
+    A match is marked by the module-annotation columns being populated after the
+    annotation left-join — NOT by a non-null ``weight``. Weight-less modules
+    (``superhuman``, the ClinVar gene panels ``cardio``/``cancer``/``pathogenic``)
+    carry ``weight=None`` on every variant, so filtering on ``weight`` silently
+    drops all of their matches and the report shows 0 annotated variants. Use the
+    ``module`` name column (always set on a real match), falling back to
+    ``conclusion``/``state`` and finally ``weight`` if those columns are absent.
+    """
+    for marker in ("module", "conclusion", "state"):
+        if marker in df.columns:
+            return df.filter(pl.col(marker).is_not_null())
+    return df.filter(pl.col("weight").is_not_null())
+
+
 # Longevity pathway categories and their display metadata
 LONGEVITY_CATEGORIES: dict[str, dict[str, str]] = {
     "lipids": {
@@ -333,8 +350,8 @@ def build_longevity_report_data(
         # Load and enrich weights
         enriched_df = load_annotated_weights(weights_parquet, module_name, module_info)
 
-        # Filter to rows that have a weight (i.e., were actually annotated)
-        annotated = enriched_df.filter(pl.col("weight").is_not_null())
+        # Keep the rows that matched a module entry (weight-agnostic: superhuman etc. have no weight)
+        annotated = _annotated_rows(enriched_df)
 
         # Get all rsids for study lookup
         rsids = annotated.select("rsid").unique().to_series().to_list()
@@ -444,7 +461,7 @@ def build_module_report_data(
     """
     with start_action(action_type="build_module_report_data", module=module_name, path=str(weights_parquet)):
         enriched_df = load_annotated_weights(weights_parquet, module_name, module_info)
-        annotated = enriched_df.filter(pl.col("weight").is_not_null())
+        annotated = _annotated_rows(enriched_df)
 
         rsids = annotated.select("rsid").unique().to_series().to_list()
         studies_by_rsid = load_studies_for_variants(rsids, module_name, module_info)
