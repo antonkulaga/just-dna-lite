@@ -80,6 +80,8 @@ def invalidate_module_cache_on_version_change(current_version: Optional[str] = N
     """
     current = current_version or get_app_version()
     marker = _marker_path()
+    # No marker == a version predating this feature (an upgrade) or a fresh install:
+    # previous is None, which never equals a real version, so we force a one-time purge.
     previous = marker.read_text().strip() if marker.exists() else None
     if previous == current:
         return False

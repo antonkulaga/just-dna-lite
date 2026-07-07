@@ -40,6 +40,25 @@ def test_invalidate_only_on_version_change(tmp_path, monkeypatch):
     assert marker.read_text().strip() == "2.1.0"
 
 
+def test_no_marker_forces_invalidation_and_clears_stale_cache(tmp_path, monkeypatch):
+    """Upgrading from a pre-feature version (or a fresh install) leaves no marker file.
+    That must force a one-time purge of the stale cache, not skip invalidation."""
+    hf_root = tmp_path / "hub"
+    stale = hf_root / "datasets--just-dna-seq--annotators"
+    stale.mkdir(parents=True)
+    (stale / "weights.parquet").write_text("stale-from-old-version")
+    monkeypatch.setattr(module_cache, "HF_HUB_CACHE", str(hf_root))
+    monkeypatch.setenv("JUST_DNA_PIPELINES_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setattr(module_cache, "_hf_repo_ids", lambda: ["just-dna-seq/annotators"])
+
+    marker = Path(tmp_path / "cache" / "module_cache.version")
+    assert not marker.exists()  # pre-feature state: older versions never wrote it
+
+    assert module_cache.invalidate_module_cache_on_version_change("9.9.9") is True
+    assert not stale.exists()  # stale cache actually removed
+    assert marker.read_text().strip() == "9.9.9"
+
+
 def test_get_app_version_returns_installed_version():
     v = module_cache.get_app_version()
     assert isinstance(v, str) and v  # a real version or the 'unknown' sentinel
