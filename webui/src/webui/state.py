@@ -316,7 +316,7 @@ def _ensure_normalized_parquet(safe_user_id: str, selected_file: str, partition_
 
 
 # Canonical tab order — single source of truth used both as the default for the
-# tab_order state var and as the validation set in drop_tab_onto.
+# tab_order state var and as the validation set in move_tab.
 DEFAULT_TAB_ORDER: list[str] = ["input", "prs", "annotated_files", "reports", "analysis"]
 
 
@@ -1319,7 +1319,6 @@ class UploadState(LazyFrameGridMixin, rx.State):
     new_analysis_expanded: bool = True  # Whether the new analysis section is expanded
     right_panel_active_tab: str = "input"  # "input", "prs", "annotated_files", "reports", "analysis"
     tab_order: list[str] = DEFAULT_TAB_ORDER  # drag-reorderable tab list
-    _drag_tab_id: str = ""  # internal: id of the tab being dragged (cleared after drop)
     show_input_tab_info: bool = True
     show_prs_tab_info: bool = True
     show_annotated_files_tab_info: bool = True
@@ -3006,21 +3005,19 @@ class UploadState(LazyFrameGridMixin, rx.State):
         """Switch the right panel to the new analysis tab."""
         self.right_panel_active_tab = "analysis"
 
-    def drag_tab_start(self, tab_id: str):
-        """Record which tab the user started dragging."""
-        self._drag_tab_id = tab_id
+    def move_tab(self, src: str, dst: str):
+        """Reorder tabs: move the dragged tab (src) before or after the target (dst).
 
-    def drop_tab_onto(self, target_tab_id: str):
-        """Reorder tabs: move the dragged tab before or after the target.
+        Both ids arrive on the drop event itself (src from the drag's
+        dataTransfer, dst from the target's data-tab-id — see drop_tab_spec), so
+        the gesture is self-contained: no drag-start round-trip and no server
+        state to stash between events.
 
         When dragging left-to-right the user expects the source to land *after*
-        the target; right-to-left it should land *before*.  We detect direction
+        the target; right-to-left it should land *before*. We detect direction
         from the current order so either gesture feels natural.
         """
-        src = self._drag_tab_id
-        dst = target_tab_id
         if not src or src == dst or src not in self.tab_order or dst not in self.tab_order:
-            self._drag_tab_id = ""
             return
         order = list(self.tab_order)
         src_idx = order.index(src)
@@ -3033,7 +3030,6 @@ class UploadState(LazyFrameGridMixin, rx.State):
             insert_at += 1
         order.insert(insert_at, src)
         self.tab_order = order
-        self._drag_tab_id = ""
 
     def close_right_panel_tab_info(self, tab_name: str):
         """Hide the explanatory message for one right-panel tab."""

@@ -2722,10 +2722,12 @@ TAB_DRAG_JS = """
 (function () {
     if (window.__tabDndInit) return;
     window.__tabDndInit = true;
-    var SEL = '#right-panel-tab-menu .item';
+    var MENU = '#right-panel-tab-menu';
+    var SEL = MENU + ' .item';
+    var menuEl = function () { return document.querySelector(MENU); };
     var clearMarks = function () {
         document.querySelectorAll(
-            '#right-panel-tab-menu .tab-dragging, #right-panel-tab-menu .tab-drag-over'
+            MENU + ' .tab-dragging, ' + MENU + ' .tab-drag-over'
         ).forEach(function (el) { el.classList.remove('tab-dragging', 'tab-drag-over'); });
     };
     document.addEventListener('dragstart', function (e) {
@@ -2734,6 +2736,12 @@ TAB_DRAG_JS = """
         // Firefox requires dataTransfer.setData() for the drag to begin at all.
         try { e.dataTransfer.setData('text/plain', item.dataset.tabId || ''); } catch (_) {}
         if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+        // Stash the source id on the menu element. We DON'T read it back from
+        // dataTransfer on drop: Firefox doesn't reliably expose dataTransfer
+        // data through React's synthetic onDrop, so drop_tab_spec reads this
+        // attribute instead (setData above is only to satisfy FF's drag-start).
+        var menu = menuEl();
+        if (menu) menu.dataset.dragSrc = item.dataset.tabId || '';
         item.classList.add('tab-dragging');
     });
     document.addEventListener('dragover', function (e) {
@@ -2753,11 +2761,18 @@ TAB_DRAG_JS = """
         var item = e.target.closest ? e.target.closest(SEL) : null;
         if (!item) return;
         // Stop the browser's default drop handling; the React on_drop handler
-        // on the draggable_div element still fires and calls drop_tab_onto.
+        // on the draggable_div element still fires and calls move_tab, reading
+        // the source id from menu.dataset.dragSrc (set in dragstart).
         e.preventDefault();
         clearMarks();
     });
-    document.addEventListener('dragend', clearMarks);
+    document.addEventListener('dragend', function () {
+        clearMarks();
+        // Clear the stashed source only after the whole gesture is over, so it
+        // can't race React's onDrop read regardless of listener ordering.
+        var menu = menuEl();
+        if (menu) delete menu.dataset.dragSrc;
+    });
 })();
 """
 
@@ -2795,9 +2810,8 @@ def _tab_item(tab_id: rx.Var[str]) -> rx.Component:
                 ),
                 class_name=rx.cond(UploadState.right_panel_active_tab == "input", "active item", "item"),
                 on_click=UploadState.switch_to_input_tab,
-                on_drag_start=UploadState.drag_tab_start("input"),
                 on_drag_over=rx.prevent_default,
-                on_drop=UploadState.drop_tab_onto("input"),
+                on_drop=UploadState.move_tab,
                 draggable=True,
                 style=drag_style,
                 data_tab_id="input",
@@ -2823,9 +2837,8 @@ def _tab_item(tab_id: rx.Var[str]) -> rx.Component:
                 ),
                 class_name=rx.cond(UploadState.right_panel_active_tab == "prs", "active item", "item"),
                 on_click=UploadState.switch_to_prs_tab,
-                on_drag_start=UploadState.drag_tab_start("prs"),
                 on_drag_over=rx.prevent_default,
-                on_drop=UploadState.drop_tab_onto("prs"),
+                on_drop=UploadState.move_tab,
                 draggable=True,
                 style=drag_style,
                 data_tab_id="prs",
@@ -2847,9 +2860,8 @@ def _tab_item(tab_id: rx.Var[str]) -> rx.Component:
                 ),
                 class_name=rx.cond(UploadState.right_panel_active_tab == "annotated_files", "active item", "item"),
                 on_click=UploadState.switch_to_annotated_files_tab,
-                on_drag_start=UploadState.drag_tab_start("annotated_files"),
                 on_drag_over=rx.prevent_default,
-                on_drop=UploadState.drop_tab_onto("annotated_files"),
+                on_drop=UploadState.move_tab,
                 draggable=True,
                 style=drag_style,
                 data_tab_id="annotated_files",
@@ -2875,9 +2887,8 @@ def _tab_item(tab_id: rx.Var[str]) -> rx.Component:
                 ),
                 class_name=rx.cond(UploadState.right_panel_active_tab == "reports", "active item", "item"),
                 on_click=UploadState.switch_to_reports_tab,
-                on_drag_start=UploadState.drag_tab_start("reports"),
                 on_drag_over=rx.prevent_default,
-                on_drop=UploadState.drop_tab_onto("reports"),
+                on_drop=UploadState.move_tab,
                 draggable=True,
                 style=drag_style,
                 data_tab_id="reports",
@@ -2904,9 +2915,8 @@ def _tab_item(tab_id: rx.Var[str]) -> rx.Component:
                 ),
                 class_name=rx.cond(UploadState.right_panel_active_tab == "analysis", "active item", "item"),
                 on_click=UploadState.switch_to_analysis_tab,
-                on_drag_start=UploadState.drag_tab_start("analysis"),
                 on_drag_over=rx.prevent_default,
-                on_drop=UploadState.drop_tab_onto("analysis"),
+                on_drop=UploadState.move_tab,
                 draggable=True,
                 style=drag_style,
                 data_tab_id="analysis",
